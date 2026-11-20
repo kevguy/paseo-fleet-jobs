@@ -1,5 +1,6 @@
 import type { PluginScreenProps } from "@getpaseo/plugin/client";
 import { useRpc } from "@getpaseo/plugin/client";
+import * as PaseoClient from "@getpaseo/plugin/client";
 import { onlineManager, useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { AppState, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -8,6 +9,8 @@ import { detailRpc, fleetRpc, type Fleet, type Job } from "../shared/jobs";
 type Host = Fleet["hosts"][number];
 const labels: Record<Job["effectiveStatus"], string> = { running: "Running", waiting: "Waiting", succeeded: "Succeeded", failed: "Failed", stale: "Stale", unknown: "Unknown" };
 const attention = new Set(["failed", "stale", "unknown"]);
+// Older clients may not supply host observation; native clients then fail closed.
+const useHostConnections = PaseoClient.useHosts ?? (() => []);
 
 export function FleetScreen(props: PluginScreenProps) {
   const { theme, layout, host, navigation } = props;
@@ -18,15 +21,17 @@ export function FleetScreen(props: PluginScreenProps) {
   const [active, setActive] = useState(AppState.currentState !== "background");
   useEffect(() => { const sub = AppState.addEventListener("change", s => setActive(s === "active")); return () => sub.remove(); }, []);
   useEffect(() => { setSelected(null); }, [host.id]);
-  const online = useSyncExternalStore(callback => onlineManager.subscribe(callback), () => onlineManager.isOnline(), () => true);
+  const networkOnline = useSyncExternalStore(callback => onlineManager.subscribe(callback), () => onlineManager.isOnline(), () => true);
+  const hostConnection = useHostConnections().find(connection => connection.serverId === host.id);
+  const online = networkOnline && (hostConnection ? hostConnection.status === "online" : layout.platform === "web");
   const [disconnectedAt, setDisconnectedAt] = useState(0);
   // A reopened screen must verify again, even if the shared query cache survived an outage.
   const [viewId] = useState(() => `${Date.now()}-${Math.random()}`);
   useEffect(() => { if (!online) setDisconnectedAt(Date.now()); }, [online]);
   const fetchFleet = useRpc(fleetRpc);
   const fetchDetail = useRpc(detailRpc);
-  const fleet = useQuery({ queryKey: ["fleet-jobs", host.id, viewId], queryFn: async () => { const requestStartedAt = Date.now(); const connectedAtStart = onlineManager.isOnline(); return { ...await fetchFleet({}), requestStartedAt, connectedAtStart }; }, refetchInterval: active ? 30000 : false, refetchIntervalInBackground: false, retry: false });
-  const detail = useQuery({ queryKey: ["fleet-job-detail", host.id, viewId, selected?.source.id, selected?.id], queryFn: async () => { const requestStartedAt = Date.now(); const connectedAtStart = onlineManager.isOnline(); return { ...await fetchDetail({ id: selected!.id, sourceId: selected!.source.id }), requestStartedAt, connectedAtStart }; }, enabled: !!selected, retry: false, refetchInterval: active && selected ? 30000 : false });
+  const fleet = useQuery({ queryKey: ["fleet-jobs", host.id, viewId], queryFn: async () => { const requestStartedAt = Date.now(); const connectedAtStart = online && onlineManager.isOnline(); return { ...await fetchFleet({}), requestStartedAt, connectedAtStart }; }, refetchInterval: active ? 30000 : false, refetchIntervalInBackground: false, retry: false });
+  const detail = useQuery({ queryKey: ["fleet-job-detail", host.id, viewId, selected?.source.id, selected?.id], queryFn: async () => { const requestStartedAt = Date.now(); const connectedAtStart = online && onlineManager.isOnline(); return { ...await fetchDetail({ id: selected!.id, sourceId: selected!.source.id }), requestStartedAt, connectedAtStart }; }, enabled: !!selected, retry: false, refetchInterval: active && selected ? 30000 : false });
   const fleetUncertain = !online || fleet.isPaused || fleet.isError || (!!fleet.data && (!fleet.data.connectedAtStart || fleet.data.requestStartedAt <= disconnectedAt));
   const detailUncertain = !online || detail.isPaused || detail.isError || (!!detail.data && (!detail.data.connectedAtStart || detail.data.requestStartedAt <= disconnectedAt));
   const text = { color: c.foreground };
