@@ -4,5 +4,9 @@
   "description": "Read-only job progress and verified result evidence across your hosts.",
   "requirements": {
     "paseo": ">=0.12.0"
-  }
+  },
+  "media": [
+    "assets/fleet-desktop.png",
+    "assets/evidence-mobile.png"
+  ]
 }

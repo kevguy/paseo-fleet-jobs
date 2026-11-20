@@ -1,7 +1,7 @@
 {
   "name": "paseo-fleet-jobs",
   "private": false,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "files": [
     "paseo-plugin.json",
     "OVERVIEW.md",
@@ -16,11 +16,13 @@
     "bin/",
     "README.md",
     "LICENSE",
-    "examples/"
+    "examples/",
+    "assets/",
+    "THIRD_PARTY_NOTICES.txt"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build:cli": "esbuild scripts/cli.ts --bundle --platform=node --target=node20 --format=esm --outfile=bin/fleet-jobs.mjs",
+    "build:cli": "esbuild scripts/cli.ts --bundle --preserve-symlinks --platform=node --target=node20 --format=esm --outfile=bin/fleet-jobs.mjs",
     "test": "node --import tsx --test tests/*.test.ts",
     "prepack": "npm run typecheck && npm run build:cli"
   },

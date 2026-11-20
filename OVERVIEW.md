@@ -9,3 +9,7 @@ For a reported success, Fleet Jobs checks that the referenced evidence is a read
 Remote hosts are opt-in and use only fixed read-only snapshot and detail requests over SSH. Receipt metadata and selected evidence and log text are shared with Paseo clients paired to the host. Trust the configured hosts, publishers, and their artifacts accordingly.
 
 Optional explicit file observers keep receipts current without editing runners. Disk, NVIDIA and work-claim readings add resource context while preserving uncertainty about reservations. Each host collects independently every minute and retains a deduplicated local change inbox across reloads; no external notification service is used.
+
+Requires Paseo 0.12 or later and Node.js 20 or later for the bundled CLI. macOS and Linux have been exercised; Windows has not been validated. Remote sources additionally need SSH with key-based access, a previously trusted host key, and the CLI installed on that host. See the [README](README.md) for configuration and command examples.
+
+The plugin reads configured local evidence, logs and optional resource sources, and writes its own receipts and monitor state in its separate data directory. It does not download software, run job commands, send OS push notifications, or claim that observed resource usage guarantees available capacity. The listing images use synthetic sample data.

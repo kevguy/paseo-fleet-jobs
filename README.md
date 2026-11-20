@@ -10,6 +10,17 @@ Fleet Jobs is a read-only Paseo plug-in for viewing progress and result evidence
 
 The UI uses the client supplied by Paseo and is available in Paseo desktop and mobile clients when the plug-in is enabled there.
 
+## Install from a Git checkout
+
+Keep the checkout in a persistent directory and install its absolute path:
+
+```sh
+paseo plugin install /absolute/path/paseo-fleet-jobs
+node /absolute/path/paseo-fleet-jobs/bin/fleet-jobs.mjs --help
+```
+
+The CLI is already bundled. No dependency installation or build is needed to run it. Enable plugins in Paseo settings if needed.
+
 ## Install from an npm tarball
 
 From this repository, create the package tarball:
@@ -23,7 +34,7 @@ Extract it and install the extracted package directory. Replace the example path
 
 ```sh
 mkdir -p "$HOME/fleet-jobs-package"
-tar -xzf paseo-fleet-jobs-0.2.0.tgz -C "$HOME/fleet-jobs-package"
+tar -xzf paseo-fleet-jobs-0.2.1.tgz -C "$HOME/fleet-jobs-package"
 paseo plugin install "$HOME/fleet-jobs-package/package"
 ```
 
@@ -31,7 +42,7 @@ Enable plugins in Paseo Settings → Plugins if the host has them disabled. This
 
 Repeat the installation on each Paseo host where you want Fleet Jobs available. To use the commands below, invoke `node "$HOME/fleet-jobs-package/package/bin/fleet-jobs.mjs"` in place of `fleet-jobs`, or add an equivalent wrapper to your PATH.
 
-The package contains the bundled `fleet-jobs` CLI as well as the plug-in.
+The package and Git source contain the bundled `fleet-jobs` CLI as well as the plug-in. A Git installation needs no dependency installation to run this CLI. To rebuild it during development, use `npm ci` followed by `npm run build:cli`; commit the regenerated bundle with its source changes.
 
 ## Publish and inspect receipts
 

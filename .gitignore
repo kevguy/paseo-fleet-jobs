@@ -1,5 +1,6 @@
 node_modules/
-bin/
+bin/*
+!bin/fleet-jobs.mjs
 *.tgz
 .DS_Store
 .validation/
