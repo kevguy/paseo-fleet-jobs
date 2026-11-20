@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "synthetic-example-run",
+  "title": "Synthetic example job",
+  "project": "Example project",
+  "status": "running",
+  "startedAt": "2026-11-20T12:00:00.000Z",
+  "updatedAt": "2026-11-20T12:00:00.000Z",
+  "staleAfterSeconds": 900,
+  "message": "Example only; no job was launched"
+}
