@@ -1,0 +1,6 @@
+{
+  "volumes": [
+    { "id": "system", "label": "System volume", "path": "/" }
+  ],
+  "gpuEnabled": false
+}

@@ -5,6 +5,7 @@ import { onlineManager, useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { AppState, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { detailRpc, fleetRpc, type Fleet, type Job } from "../shared/jobs";
+import { HostHealth } from "./host-health";
 
 type Host = Fleet["hosts"][number];
 const labels: Record<Job["effectiveStatus"], string> = { running: "Running", waiting: "Waiting", succeeded: "Succeeded", failed: "Failed", stale: "Stale", unknown: "Unknown" };
@@ -65,6 +66,7 @@ export function FleetScreen(props: PluginScreenProps) {
         return <View key={source.id} style={{ gap: 10 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text accessibilityRole="header" style={{ ...text, fontWeight: "600", fontSize: 18 }}>{source.label}</Text><Text style={muted}>{source.error ? "Unavailable" : `${source.snapshot?.jobs.length ?? 0} jobs`}</Text></View>
           {source.error && <Text accessibilityRole="alert" style={{ color: "#d55a64" }}>{source.error}. This host's job state is unknown.</Text>}
+          {source.snapshot && <HostHealth snapshot={source.snapshot} uncertain={fleetUncertain} foreground={c.foreground} muted={c.foregroundMuted} border={c.border} />}
           {source.snapshot?.warnings.map((w, i) => <Text key={i} style={muted}>{w}</Text>)}
           {source.snapshot?.truncated && <Text style={muted}>Showing a bounded snapshot; additional receipts were omitted.</Text>}
           {jobs.map(job => <Pressable key={job.id} accessibilityRole="button" accessibilityLabel={`${job.title}, ${fleetUncertain ? "Unknown, cached" : labels[job.effectiveStatus]}. Open evidence`} onPress={() => setSelected({ source, id: job.id })} style={{ padding: 18, gap: 8, borderWidth: 1, borderColor: c.border, borderRadius: 14, backgroundColor: c.surface1 }}>

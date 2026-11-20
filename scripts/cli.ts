@@ -6,6 +6,7 @@ import path from "node:path";
 import { homedir } from "node:os";
 import { receiptSchema, jobId, type Receipt } from "../shared/receipt";
 import { getDetail, getSnapshot } from "../server/store";
+import { collectOnce } from "../server/monitor";
 
 const MAX_RECEIPT = 32 * 1024;
 const MAX_EVIDENCE = 2 * 1024 * 1024;
@@ -18,6 +19,7 @@ Usage:
   fleet-jobs snapshot
   fleet-jobs detail <id>
   fleet-jobs where
+  fleet-jobs collect
   fleet-jobs --help
 
 Receipts are stored in <home>/jobs/<id>.json. Home defaults to ~/.paseo-fleet-jobs,
@@ -25,6 +27,8 @@ or can be set with FLEET_JOBS_HOME or --home PATH. Evidence paths are resolved
 from the input receipt directory for record and from the current directory for finish.
 Record and finish verify a regular, non-symlink evidence file (maximum 2 MiB) and
 store its SHA-256. Terminal receipts cannot be changed; start a rerun with a new id.
+collect reads explicitly configured observers.json and updates the local alert inbox.
+The installed plugin collects once a minute without needing an open client.
 This CLI only records job state. It never launches, stops, or executes jobs.`;
 
 function fail(message: string): never { throw new Error(message); }
@@ -238,6 +242,13 @@ async function main(): Promise<void> {
   if (argv.includes("--help") || argv.length === 0) { console.log(help); return; }
   const { home, args } = homeFrom(argv);
   const command = args.shift();
+  if (command === "collect") {
+    if (args.length) fail("collect takes no arguments");
+    const result = await collectOnce(home);
+    console.log(JSON.stringify(result));
+    if (result.busy || result.warnings.length) process.exitCode = 1;
+    return;
+  }
   if (command === "where") {
     if (args.length) fail("where takes no arguments");
     console.log(path.join(home, "jobs")); return;

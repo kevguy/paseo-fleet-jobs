@@ -1,0 +1,13 @@
+[
+  {
+    "id": "demo-build-run-001",
+    "title": "Synthetic example build",
+    "project": "Example project",
+    "evidencePath": "/path/to/generated/scoring.json",
+    "logPath": "/path/to/generated/build.log",
+    "heartbeatPath": "/path/to/generated/heartbeat.txt",
+    "runStartedAt": "2026-11-20T12:00:00.000Z",
+    "staleAfterSeconds": 900,
+    "outcome": { "kind": "unassessed" }
+  }
+]

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { monitorSchema } from "./alerts";
+import { resourceSnapshotSchema } from "./resources";
 
 export const jobId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,79}$/);
 export const stateSchema = z.enum(["running", "waiting", "succeeded", "failed", "unknown"]);
@@ -32,6 +34,7 @@ export type Job = z.infer<typeof jobSchema>;
 export const snapshotSchema = z.object({
   host: z.string(), observedAt: z.string(), receiptDirectory: z.string(),
   jobs: z.array(jobSchema), warnings: z.array(z.string()), truncated: z.boolean(),
+  monitor: monitorSchema.optional(), resources: resourceSnapshotSchema.optional(),
 });
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export const detailSchema = z.object({ job: jobSchema, evidenceText: z.string().nullable(), logTail: z.string().nullable(), warnings: z.array(z.string()) });

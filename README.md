@@ -1,6 +1,6 @@
 # Fleet Jobs for Paseo
 
-Fleet Jobs is a read-only Paseo plug-in for viewing progress and result evidence published by job scripts. It can show jobs from the current host and, when configured, up to eight hosts reachable over SSH. It does not launch, stop, or discover jobs.
+Fleet Jobs is a read-only Paseo plug-in for viewing progress and result evidence published by job scripts. It can show jobs from the current host and, when configured, up to eight hosts reachable over SSH. It can also observe explicitly configured artifacts, collect resource readings, and keep a persistent local change inbox. It does not launch, stop, or discover jobs.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ Extract it and install the extracted package directory. Replace the example path
 
 ```sh
 mkdir -p "$HOME/fleet-jobs-package"
-tar -xzf paseo-fleet-jobs-0.1.0.tgz -C "$HOME/fleet-jobs-package"
+tar -xzf paseo-fleet-jobs-0.2.0.tgz -C "$HOME/fleet-jobs-package"
 paseo plugin install "$HOME/fleet-jobs-package/package"
 ```
 
@@ -120,3 +120,35 @@ The Paseo host invokes only the fixed `snapshot` and `detail` CLI commands over 
 Receipts are files created by the job's own script; Fleet Jobs does not scan arbitrary folders or replace a task database. The CLI accepts strict schema fields and safe ids. Logs and evidence are read with size limits. Local receipt files live under the data home, while evidence and logs remain at the paths published in each receipt.
 
 The status is a publisher claim. SHA-256 detects whether the evidence bytes changed since publication; it is not a semantic evaluation, signature, or independent audit. Treat receipt publishers, SSH sources, and their evidence as trusted inputs.
+
+## Automatic file observers
+
+Place an array in `<data home>/observers.json`; see `examples/observer.json`. Each entry names an explicit evidence path, a unique run id, `runStartedAt`, and an outcome rule. Text rules use distinct literal success/failure markers; JSON rules compare one explicit field path with scalar success/failure values. Use `{ "kind": "unassessed" }` when the artifact contains metrics without an acceptance verdict: its status stays unknown. Configuration is bounded to 32 entries and 32 KiB.
+
+An optional `heartbeatPath` uses that file's modification time, so an unchanged file never receives a fresh heartbeat merely because the observer is polling. A PID file is unsuitable. `logPath` supplies a diagnostic tail. Evidence must be a real UTF-8 file of at most 2 MiB and must not predate the run. Both outcome markers in one artifact are ambiguous and remain unknown. A configured rule is a publisher policy, not independent semantic validation.
+
+The observer owns only receipts it created. It refuses existing manual receipts or changed configuration under the same id. Give each rerun or changed rule a new id. Accepted terminal receipts keep the original evidence checksum; subsequently changed evidence cannot be silently reaccepted. Existing job scripts need no modification.
+
+The installed plugin collects on its host at startup and every minute, even with no client open. For an immediate collection:
+
+```sh
+fleet-jobs collect
+```
+
+The daemon must remain running and the host awake. Each worker collects independently; a coordinator's sleep does not suspend the other workers. The CLI's `snapshot` and `detail` remain read-only.
+
+## Resource observations
+
+Optional `<data home>/resources.json` configures up to eight explicit disk paths, NVIDIA telemetry, and a local directory of heavy-work claims; see `examples/resources.json`. Disk readings show available space. NVIDIA uses only `/usr/bin/nvidia-smi` with a fixed bounded query. Unsupported hardware produces an unavailable reading. Resource readings cache for at most one minute in the daemon.
+
+Work claims show only aggregate counts and weights from bounded claim files. “Unexpired” describes their timestamp/TTL window, not process liveness or free capacity. GPU utilization is also not reservation availability. Fleet Jobs never acquires leases, prunes claims, or reserves resources.
+
+## Persistent change inbox
+
+The first collection establishes a quiet baseline. Subsequent transitions to waiting, succeeded, failed, stale or unknown appear under **Recent changes**. A job/run/state is reported once, including after plugin reload. The most recent 100 changes are retained in `monitor.json`; up to 400 recent run identities retain deduplication history. The UI shows the newest five per host; `fleet-jobs snapshot` includes the entire retained inbox. These are historical observations, not current job status.
+
+This inbox does not send operating-system or phone push notifications. It needs no push tokens or external notification service. A stale collector timestamp or invalid configuration is visible in the host panel. Collection does not replace malformed monitor state. If a collector crashed while holding `monitor.lock` or a receipt lock, inspect its owner/process before moving the stale lock aside; a live lock must not be removed.
+
+## Updating and removing
+
+Keep the data home when replacing the extracted package in its existing location, then run `paseo plugin reload paseo-fleet-jobs`. Do not install the same plugin twice. Remove it through Paseo's plugin controls when no longer needed; cleanup stops its polling timer. Existing receipts, evidence and logs remain yours.

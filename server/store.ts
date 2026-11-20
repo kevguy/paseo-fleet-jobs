@@ -3,7 +3,9 @@ import { constants } from "node:fs";
 import { lstat, open, opendir } from "node:fs/promises";
 import { hostname } from "node:os";
 import { homedir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
+import { readMonitor } from "./alerts";
+import { getResources } from "./resources";
 import { detailSchema, jobId, receiptSchema, snapshotSchema, type Detail, type Job, type Receipt, type Snapshot } from "../shared/receipt";
 
 const MAX_RECEIPT_BYTES = 32 * 1024;
@@ -14,7 +16,7 @@ const MAX_DIRECTORY_ENTRIES = 4000;
 const MAX_CLOCK_SKEW_MS = 60_000;
 const NOFOLLOW = constants.O_NOFOLLOW ?? 0;
 
-type Options = { directory?: string; now?: Date };
+type Options = { directory?: string; now?: Date; includeExtras?: boolean };
 type ReadArtifact = { text: string | null; warning?: string };
 
 function receiptDirectory(options?: Options): string {
@@ -143,7 +145,9 @@ export async function getSnapshot(options?: Options): Promise<Snapshot> {
       if (result.warning) found.warnings.push(`${name}: ${result.warning}`);
     } catch (error) { found.warnings.push(`${name}: ${errorMessage(error)}`); }
   }
-  const snapshot = { host: hostname(), observedAt: now.toISOString(), receiptDirectory: directory, jobs, warnings: found.warnings, truncated: found.truncated };
+  const home = dirname(directory);
+  const extras = options?.includeExtras === false ? {} : { monitor: await readMonitor(home), resources: await getResources(home) };
+  const snapshot = { host: hostname(), observedAt: now.toISOString(), receiptDirectory: directory, jobs, warnings: found.warnings, truncated: found.truncated, ...extras };
   return snapshotSchema.parse(snapshot);
 }
 
