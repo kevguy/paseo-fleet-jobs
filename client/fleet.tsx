@@ -20,13 +20,15 @@ export function FleetScreen(props: PluginScreenProps) {
   useEffect(() => { setSelected(null); }, [host.id]);
   const online = useSyncExternalStore(callback => onlineManager.subscribe(callback), () => onlineManager.isOnline(), () => true);
   const [disconnectedAt, setDisconnectedAt] = useState(0);
+  // A reopened screen must verify again, even if the shared query cache survived an outage.
+  const [viewId] = useState(() => `${Date.now()}-${Math.random()}`);
   useEffect(() => { if (!online) setDisconnectedAt(Date.now()); }, [online]);
   const fetchFleet = useRpc(fleetRpc);
   const fetchDetail = useRpc(detailRpc);
-  const fleet = useQuery({ queryKey: ["fleet-jobs", host.id], queryFn: () => fetchFleet({}), refetchInterval: active ? 30000 : false, refetchIntervalInBackground: false, retry: false });
-  const detail = useQuery({ queryKey: ["fleet-job-detail", host.id, selected?.source.id, selected?.id], queryFn: () => fetchDetail({ id: selected!.id, sourceId: selected!.source.id }), enabled: !!selected, retry: false, refetchInterval: active && selected ? 30000 : false });
-  const fleetUncertain = !online || fleet.isPaused || fleet.isError || (disconnectedAt > 0 && fleet.dataUpdatedAt <= disconnectedAt);
-  const detailUncertain = !online || detail.isPaused || detail.isError || (disconnectedAt > 0 && detail.dataUpdatedAt <= disconnectedAt);
+  const fleet = useQuery({ queryKey: ["fleet-jobs", host.id, viewId], queryFn: async () => { const requestStartedAt = Date.now(); const connectedAtStart = onlineManager.isOnline(); return { ...await fetchFleet({}), requestStartedAt, connectedAtStart }; }, refetchInterval: active ? 30000 : false, refetchIntervalInBackground: false, retry: false });
+  const detail = useQuery({ queryKey: ["fleet-job-detail", host.id, viewId, selected?.source.id, selected?.id], queryFn: async () => { const requestStartedAt = Date.now(); const connectedAtStart = onlineManager.isOnline(); return { ...await fetchDetail({ id: selected!.id, sourceId: selected!.source.id }), requestStartedAt, connectedAtStart }; }, enabled: !!selected, retry: false, refetchInterval: active && selected ? 30000 : false });
+  const fleetUncertain = !online || fleet.isPaused || fleet.isError || (!!fleet.data && (!fleet.data.connectedAtStart || fleet.data.requestStartedAt <= disconnectedAt));
+  const detailUncertain = !online || detail.isPaused || detail.isError || (!!detail.data && (!detail.data.connectedAtStart || detail.data.requestStartedAt <= disconnectedAt));
   const text = { color: c.foreground };
   const muted = { color: c.foregroundMuted };
   const button = { minHeight: 44, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: c.border, borderRadius: 10 };
