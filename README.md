@@ -45,6 +45,17 @@ Fleet Jobs is a read-only view of jobs. It does not launch or stop work, automat
 
 The UI uses the client supplied by Paseo and is available in Paseo desktop and mobile clients when plugins are enabled on the host. macOS and Linux have been exercised; Windows has not been validated.
 
+## Install from npm
+
+With Paseo 0.16.2 or later, install the exact published release on the host:
+
+```sh
+paseo plugin install npm:@kevlai22/paseo-fleet-jobs@0.2.1
+paseo plugin ls paseo-fleet-jobs
+```
+
+Keep the host online while Paseo downloads and prepares the package. Installing a plugin does not restart the daemon. Repeat on each host where you want to use it.
+
 ## Install from a Git checkout
 
 Keep the checkout in a persistent directory and install its absolute path:
