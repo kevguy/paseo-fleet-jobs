@@ -1,6 +1,41 @@
 # Fleet Jobs for Paseo
 
-Fleet Jobs is a read-only Paseo plug-in for viewing progress and result evidence published by job scripts. It can show jobs from the current host and, when configured, up to eight hosts reachable over SSH. It can also observe explicitly configured artifacts, collect resource readings, and keep a persistent local change inbox. It does not launch, stop, or discover jobs.
+**Check on long-running work without opening another terminal.**
+
+Fleet Jobs brings job progress, results and saved evidence into Paseo. See what is running, what needs attention and what finished—on one machine or across your own SSH-connected workers. Open a job to read its result report and recent log from your desktop or phone.
+
+Your scripts publish small JSON receipts, or an optional file observer watches a result file you choose. Fleet Jobs displays those records; your existing tools keep running the work.
+
+![Fleet Jobs showing fictional build and processing jobs](assets/fleet-desktop.png)
+
+*The screenshots use entirely fictional jobs, hosts, paths and reports. They render the real plugin interface in a browser; the narrow screenshot below is a mobile-sized preview, not a native phone capture.*
+
+## Where it helps
+
+| When you… | Fleet Jobs helps you… |
+| --- | --- |
+| Leave a build or test suite running | Check its reported progress and open the saved test report when it finishes. |
+| Run backups or data exports overnight | See the reported outcome and inspect a verification report without finding the right terminal. |
+| Process video, audio or a large dataset | Follow script-reported progress and spot a stale heartbeat. |
+| Run model evaluations or experiments | Keep the reported verdict next to the exact saved evidence; leave results unknown when no verdict exists. |
+| Use several machines | View local jobs and up to eight explicitly configured SSH sources together, with optional disk and NVIDIA GPU readings. |
+
+### From status to evidence
+
+A green result means the publisher reported success **and** the saved evidence matches its recorded SHA-256. If that evidence disappears or changes, the result becomes unknown. The checksum checks the saved bytes; your script or observer rule decides what counts as success.
+
+<img src="assets/evidence-mobile.png" alt="Mobile-sized Fleet Jobs detail showing a fictional backup report, evidence checksum and recent log" width="390" />
+
+### Fits around your existing workflow
+
+- **Start small:** one Paseo host and one receipt; remote aggregation is optional.
+- **Keep your runners:** add receipt commands to a shell script, scheduled task or agent workflow, or configure a file observer without changing the runner.
+- **Catch up later:** the background collector retains a local Recent changes inbox while the host is awake and Paseo is running.
+- **Keep data on your hosts:** receipts and settings live outside the plugin; remote sources use your existing SSH access. Paired Paseo clients can read the configured metadata and evidence.
+
+Fleet Jobs is a read-only view of jobs. It does not launch or stop work, automatically discover processes, reserve resources or send phone push notifications.
+
+[Install](#install-from-a-git-checkout) · [Try a demo](#try-it-with-a-fictional-job) · [Connect workers](#optional-ssh-sources) · [Observe existing reports](#automatic-file-observers) · [Data and trust](#data-and-trust)
 
 ## Requirements
 
@@ -8,7 +43,7 @@ Fleet Jobs is a read-only Paseo plug-in for viewing progress and result evidence
 - Node.js 20 or later on each host running the `fleet-jobs` CLI
 - For optional remote hosts: SSH available on the Paseo server host, key-based access, and the remote host key already trusted in `known_hosts`
 
-The UI uses the client supplied by Paseo and is available in Paseo desktop and mobile clients when the plug-in is enabled there.
+The UI uses the client supplied by Paseo and is available in Paseo desktop and mobile clients when plugins are enabled on the host. macOS and Linux have been exercised; Windows has not been validated.
 
 ## Install from a Git checkout
 
@@ -21,9 +56,9 @@ node /absolute/path/paseo-fleet-jobs/bin/fleet-jobs.mjs --help
 
 The CLI is already bundled. No dependency installation or build is needed to run it. Enable plugins in Paseo settings if needed.
 
-## Install from an npm tarball
+## Install from a package tarball
 
-From this repository, create the package tarball:
+If you already have a release tarball, skip to extraction below. To create one from this repository:
 
 ```sh
 npm ci
@@ -44,11 +79,53 @@ Repeat the installation on each Paseo host where you want Fleet Jobs available. 
 
 The package and Git source contain the bundled `fleet-jobs` CLI as well as the plug-in. A Git installation needs no dependency installation to run this CLI. To rebuild it during development, use `npm ci` followed by `npm run build:cli`; commit the regenerated bundle with its source changes.
 
+## Try it with a fictional job
+
+Run this on the **Paseo host** where you installed the plugin. Set the first path to your checkout or extracted package. The helper calls the bundled CLI directly; no global npm install is needed.
+
+```sh
+FLEET_JOBS_PLUGIN="/absolute/path/paseo-fleet-jobs"
+fleet_jobs() { node "$FLEET_JOBS_PLUGIN/bin/fleet-jobs.mjs" "$@"; }
+
+# A separate directory and a unique id keep every demo run distinct.
+demo_run="demo-$(date +%Y%m%d-%H%M%S)-$$"
+mkdir -p "$HOME/fleet-jobs-demo/$demo_run"
+cd "$HOME/fleet-jobs-demo/$demo_run"
+now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > receipt.json <<EOF
+{
+  "schemaVersion": 1,
+  "id": "$demo_run",
+  "title": "Build the example docs",
+  "project": "Getting started",
+  "status": "running",
+  "startedAt": "$now",
+  "updatedAt": "$now",
+  "message": "Fictional demo; no build was launched"
+}
+EOF
+fleet_jobs record ./receipt.json
+fleet_jobs heartbeat "$demo_run" --progress 60 --message "Demo: checking links"
+```
+
+Open **Fleet Jobs** from the host's Paseo sidebar and refresh. You should see the demo at 60% reported progress. Then, in the same shell, write its fictional result and mark it complete:
+
+```sh
+printf '%s\n' 'Demo report: 24 example pages checked; 0 broken links.' > result.txt
+fleet_jobs finish "$demo_run" --status succeeded --evidence ./result.txt \
+  --message "Demo complete; open the saved report"
+fleet_jobs detail "$demo_run"
+```
+
+Refresh and open the job: its state should be **Succeeded**, with the report and a verified checksum. Keep `result.txt` in place if you want that evidence to remain readable. This example uses the default data home; if your installation uses a custom home, pass the same `--home PATH` to the CLI. A CLI-only `FLEET_JOBS_HOME` environment change does not reconfigure an already-running Paseo daemon.
+
+The remaining examples use `fleet-jobs` as shorthand for the bundled CLI. You can use the `fleet_jobs` helper above instead.
+
 ## Publish and inspect receipts
 
 Job scripts own receipt creation and updates. By default, the CLI stores receipts under `~/.paseo-fleet-jobs/jobs/`; set `FLEET_JOBS_HOME` or pass `--home PATH` to choose another data directory. This data directory is outside the installed package and should be retained when updating the plug-in.
 
-Create a receipt JSON file and an evidence artifact. The receipt input must be a regular file no larger than 32 KiB. Evidence and optional log paths may be relative to the receipt file. `record` validates the complete receipt, resolves paths, hashes current evidence, and writes the receipt atomically:
+For a real job, choose an id unique to that run and use current timestamps. Create a receipt JSON file and an evidence artifact. The receipt input must be a regular file no larger than 32 KiB. Evidence and optional log paths may be relative to the receipt file. `record` validates the complete receipt, resolves paths, hashes current evidence, and writes the receipt atomically:
 
 ```sh
 fleet-jobs record ./run-receipt.json
@@ -134,7 +211,7 @@ The status is a publisher claim. SHA-256 detects whether the evidence bytes chan
 
 ## Automatic file observers
 
-Place an array in `<data home>/observers.json`; see `examples/observer.json`. Each entry names an explicit evidence path, a unique run id, `runStartedAt`, and an outcome rule. Text rules use distinct literal success/failure markers; JSON rules compare one explicit field path with scalar success/failure values. Use `{ "kind": "unassessed" }` when the artifact contains metrics without an acceptance verdict: its status stays unknown. Configuration is bounded to 32 entries and 32 KiB.
+Place an array in `<data home>/observers.json`; see [the observer example](examples/observer.json). Each entry names an explicit evidence path, a unique run id, `runStartedAt`, and an outcome rule. Text rules use distinct literal success/failure markers; JSON rules compare one explicit field path with scalar success/failure values. Use `{ "kind": "unassessed" }` when the artifact contains metrics without an acceptance verdict: its status stays unknown. Configuration is bounded to 32 entries and 32 KiB.
 
 An optional `heartbeatPath` uses that file's modification time, so an unchanged file never receives a fresh heartbeat merely because the observer is polling. A PID file is unsuitable. `logPath` supplies a diagnostic tail. Evidence must be a real UTF-8 file of at most 2 MiB and must not predate the run. Both outcome markers in one artifact are ambiguous and remain unknown. A configured rule is a publisher policy, not independent semantic validation.
 
@@ -150,7 +227,7 @@ The daemon must remain running and the host awake. Each worker collects independ
 
 ## Resource observations
 
-Optional `<data home>/resources.json` configures up to eight explicit disk paths, NVIDIA telemetry, and a local directory of heavy-work claims; see `examples/resources.json`. Disk readings show available space. NVIDIA uses only `/usr/bin/nvidia-smi` with a fixed bounded query. Unsupported hardware produces an unavailable reading. Resource readings cache for at most one minute in the daemon.
+Optional `<data home>/resources.json` configures up to eight explicit disk paths, NVIDIA telemetry, and a local directory of heavy-work claims; see [the resource example](examples/resources.json). Disk readings show available space. NVIDIA uses only `/usr/bin/nvidia-smi` with a fixed bounded query. Unsupported hardware produces an unavailable reading. Resource readings cache for at most one minute in the daemon.
 
 Work claims show only aggregate counts and weights from bounded claim files. “Unexpired” describes their timestamp/TTL window, not process liveness or free capacity. GPU utilization is also not reservation availability. Fleet Jobs never acquires leases, prunes claims, or reserves resources.
 
@@ -163,3 +240,18 @@ This inbox does not send operating-system or phone push notifications. It needs 
 ## Updating and removing
 
 Keep the data home when replacing the extracted package in its existing location, then run `paseo plugin reload paseo-fleet-jobs`. Do not install the same plugin twice. Remove it through Paseo's plugin controls when no longer needed; cleanup stops its polling timer. Existing receipts, evidence and logs remain yours.
+
+## Development and license
+
+The source includes the plugin, bundled CLI, typed receipt schemas and tests. For development:
+
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build:cli
+```
+
+Commit the regenerated CLI with any CLI source changes. Screenshot provenance is documented in [assets/README.md](assets/README.md).
+
+[MIT](LICENSE). Bundled dependency attribution is in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
