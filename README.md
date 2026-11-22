@@ -1,14 +1,24 @@
 # Fleet Jobs for Paseo
 
+See the progress, results and saved evidence of long-running jobs, on one machine or across your SSH workers, from Paseo on desktop or phone.
+
+```sh
+paseo plugin add npm:@kevlai22/paseo-fleet-jobs
+```
+
+On the Paseo plugin directory: [paseo.sh/plugins/kevguy/fleet-jobs](https://paseo.sh/plugins/kevguy/fleet-jobs)
+
+![Fleet Jobs showing fictional build and processing jobs](assets/fleet-desktop.png)
+
+*The screenshots use entirely fictional jobs, hosts, paths and reports. They render the real plugin interface in a browser; the narrow screenshot below is a mobile-sized preview, not a native phone capture.*
+
+## About
+
 **Check on long-running work without opening another terminal.**
 
 Fleet Jobs brings job progress, results and saved evidence into Paseo. See what is running, what needs attention and what finished—on one machine or across your own SSH-connected workers. Open a job to read its result report and recent log from your desktop or phone.
 
 Your scripts publish small JSON receipts, or an optional file observer watches a result file you choose. Fleet Jobs displays those records; your existing tools keep running the work.
-
-![Fleet Jobs showing fictional build and processing jobs](assets/fleet-desktop.png)
-
-*The screenshots use entirely fictional jobs, hosts, paths and reports. They render the real plugin interface in a browser; the narrow screenshot below is a mobile-sized preview, not a native phone capture.*
 
 ## Where it helps
 
